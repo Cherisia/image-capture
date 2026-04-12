@@ -639,6 +639,11 @@ async function main() {
       deviceScaleFactor: config.deviceScaleFactor,
     });
 
+    // 쿠키 동의 배너 미리 수락 (페이지 로드 전 localStorage 세팅)
+    await page.evaluateOnNewDocument(() => {
+      localStorage.setItem('cookie_consent', 'accepted');
+    });
+
     // 1) 기본 양식 캡처
     await capturePage(page, formUrl, filenames.form, '기본 양식');
 
