@@ -533,6 +533,13 @@ async function capturePage(page, url, outputPath, label) {
     console.warn(`  [경고] main 요소를 찾을 수 없습니다. 전체 페이지로 대체합니다.`);
     await page.screenshot({ path: outputPath, fullPage: false });
   } else {
+    // 요소 전체 높이에 맞게 뷰포트 확장 후 캡처 (이미지 잘림 방지)
+    const box = await mainEl.boundingBox();
+    await page.setViewport({
+      width:             config.viewportWidth,
+      height:            Math.ceil(box.height) + 100,
+      deviceScaleFactor: config.deviceScaleFactor,
+    });
     await mainEl.screenshot({ path: outputPath });
   }
   console.log(`  ✓ 저장: ${outputPath}`);
@@ -597,11 +604,16 @@ async function main() {
     });
     console.log(`\n  예시: ${tool.example}`);
     console.log('  구분자: 띄어쓰기 또는 슬래시(/) 사용 가능');
-    console.log('  선택 파라미터 건너뛰기: - 입력\n');
+    console.log('  선택 파라미터 건너뛰기: - 입력');
+    console.log('  ex 입력 시 예시값으로 자동 캡처\n');
 
     let paramInput = '';
     while (!paramInput.trim()) {
-      paramInput = await ask('파라미터 값을 입력하세요: ');
+      paramInput = await ask('파라미터 값을 입력하세요 (또는 ex): ');
+    }
+    if (paramInput.trim().toLowerCase() === 'ex') {
+      paramInput = tool.example;
+      console.log(`  → 예시값 사용: ${paramInput}`);
     }
     paramValues = parseParamInput(tool, paramInput);
 
