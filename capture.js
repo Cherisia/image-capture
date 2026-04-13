@@ -511,11 +511,14 @@ function buildUrl(baseUrl, toolUrl, params) {
 
 // ─── 출력 경로 파일명 생성 ───────────────────────────────────────────────────
 function makeFilenames(tool) {
-  const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const base = `${tool.id}_${ts}`;
+  const now  = new Date();
+  const pad  = n => String(n).padStart(2, '0');
+  const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  const dir  = path.join(config.outputPath, `${dateStr}-${tool.id}`);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return {
-    form:   path.join(config.outputPath, `${base}_form.png`),
-    result: path.join(config.outputPath, `${base}_result.png`),
+    form:   path.join(dir, 'serenkit-input.png'),
+    result: path.join(dir, 'serenkit-result.png'),
   };
 }
 
@@ -523,24 +526,40 @@ function makeFilenames(tool) {
 async function capturePage(page, url, outputPath, label) {
   console.log(`  → ${label} 로딩 중...`);
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+  await new Promise(r => setTimeout(r, 1500));
 
   // 광고 숨기기
   await page.evaluate(HIDE_ADS_SCRIPT);
 
-  // 콘텐츠 영역 선택 (main 엘리먼트)
-  const mainEl = await page.$('main');
-  if (!mainEl) {
-    console.warn(`  [경고] main 요소를 찾을 수 없습니다. 전체 페이지로 대체합니다.`);
-    await page.screenshot({ path: outputPath, fullPage: false });
+  // 캡처 대상: "이미지" 버튼 기준 계산기 카드 요소 (shareRef의 previousElementSibling)
+  const cardEl = await page.evaluateHandle(() => {
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('이미지'));
+    let el = saveBtn?.parentElement;
+    while (el && !el.hasAttribute('data-share-ignore')) el = el?.parentElement;
+    return el?.previousElementSibling || null;
+  });
+  const el = cardEl.asElement ? cardEl.asElement() : null;
+
+  if (!el) {
+    // fallback: main 요소
+    console.warn(`  [경고] 계산기 카드 요소를 찾을 수 없습니다. main 요소로 대체합니다.`);
+    const mainEl = await page.$('main');
+    if (!mainEl) {
+      await page.screenshot({ path: outputPath, fullPage: false });
+    } else {
+      const box = await mainEl.boundingBox();
+      await page.setViewport({ width: config.viewportWidth, height: Math.ceil(box.height) + 100, deviceScaleFactor: config.deviceScaleFactor });
+      await mainEl.screenshot({ path: outputPath });
+    }
   } else {
-    // 요소 전체 높이에 맞게 뷰포트 확장 후 캡처 (이미지 잘림 방지)
-    const box = await mainEl.boundingBox();
+    // 요소 전체 높이에 맞게 뷰포트 확장 후 캡처
+    const box = await el.boundingBox();
     await page.setViewport({
       width:             config.viewportWidth,
       height:            Math.ceil(box.height) + 100,
       deviceScaleFactor: config.deviceScaleFactor,
     });
-    await mainEl.screenshot({ path: outputPath });
+    await el.screenshot({ path: outputPath });
   }
   console.log(`  ✓ 저장: ${outputPath}`);
 }

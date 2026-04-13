@@ -1,7 +1,7 @@
 {
-  "outputPath": "C:\\Users\\user\\OneDrive\\바탕 화면\\희찬\\serenkit-image",
+  "outputPath": "C:\\Users\\user\\OneDrive\\바탕 화면\\희찬\\blog",
   "baseUrl": "https://serenkit.com",
-  "viewportWidth": 1440,
-  "viewportHeight": 900,
-  "deviceScaleFactor": 2
+  "viewportWidth": 600,
+  "viewportHeight": 1200,
+  "deviceScaleFactor": 1
 }
